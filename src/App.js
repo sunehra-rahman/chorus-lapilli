@@ -10,15 +10,49 @@ function Square({ value, onSquareClick }) {
 }
 
 function Board({ xIsNext, squares, onPlay }) {
+  //get the adjacent empty squares
+  const adjacentSquares = (i) => {
+    const adjacent = [
+      [1, 3, 4],       // 0
+      [0, 2, 3, 4, 5], // 1
+      [1, 4, 5],       // 2
+      [0, 1, 4, 6, 7], // 3
+      [0, 1, 2, 3, 5, 6, 7, 8], // 4
+      [2, 1, 4, 8, 7], // 5
+      [3, 4, 7],       // 6
+      [6, 3, 4, 5, 8], // 7
+      [7, 4, 5],       // 8
+    ];
+    return adjacent[i];
+  };
+
   function handleClick(i) {
-    if (calculateWinner(squares) || squares[i]) {
+    //also checks if more than three squares are filled on the board
+    //filter iterates over each square
+    //uses arrow function to see if square is null or not
+    if (calculateWinner(squares) || squares[i] && squares.filter(square => square).length > 3) {
       return;
     }
     const nextSquares = squares.slice();
-    if (xIsNext) {
-      nextSquares[i] = 'X';
+    //count filled squares
+    const squareCount = nextSquares.filter(x => x).length;
+    if (squareCount >= 3) { //if three moves have been made
+      let validMove = false; //track if validMove was made
+      for (let j = 0; j < nextSquares.length; j++) { //traverse current state of the game
+        //if the square has current player's mark
+        //and if the square is indeed an adjacent square
+        //and if that square if empty
+        if (nextSquares[j] === (xIsNext ? 'X' : 'O') && adjacentSquares(j).includes(i) && !nextSquares[i]) {
+          nextSquares[j] = null; //empty current square
+          nextSquares[i] = xIsNext ? 'X' : 'O'; //fill adjacent square with player's piece
+          validMove = true; //break from loop and set validMove as true
+          break;
+        }
+      }
+      if (!validMove) return; // Invalid move
     } else {
-      nextSquares[i] = 'O';
+      // if fewer than three moves
+      nextSquares[i] = xIsNext ? 'X' : 'O'; //just set the square with the piece
     }
     onPlay(nextSquares);
   }
