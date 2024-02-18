@@ -1,6 +1,6 @@
-
 import { useState } from 'react';
 
+//Square is nchanges
 function Square({ value, onSquareClick }) {
   return (
     <button className="square" onClick={onSquareClick}>
@@ -9,126 +9,162 @@ function Square({ value, onSquareClick }) {
   );
 }
 
-function Board({ xIsNext, squares, onPlay }) {
-  //get the adjacent empty squares
-  const adjacentSquares = (i) => {
-    const adjacent = [
-      [1, 3, 4],       // 0
-      [0, 2, 3, 4, 5], // 1
-      [1, 4, 5],       // 2
-      [0, 1, 4, 6, 7], // 3
-      [0, 1, 2, 3, 5, 6, 7, 8], // 4
-      [2, 1, 4, 8, 7], // 5
-      [3, 4, 7],       // 6
-      [6, 3, 4, 5, 8], // 7
-      [7, 4, 5],       // 8
-    ];
-    return adjacent[i];
-  };
-
-  function handleClick(i) {
-    //also checks if more than three squares are filled on the board
-    //filter iterates over each square
-    //uses arrow function to see if square is null or not
-    if (calculateWinner(squares) || squares[i] && squares.filter(square => square).length > 3) {
-      return;
-    }
-    const nextSquares = squares.slice();
-    //count filled squares
-    const squareCount = nextSquares.filter(x => x).length;
-    if (squareCount >= 3) { //if three moves have been made
-      let validMove = false; //track if validMove was made
-      for (let j = 0; j < nextSquares.length; j++) { //traverse current state of the game
-        //if the square has current player's mark
-        //and if the square is indeed an adjacent square
-        //and if that square if empty
-        if (nextSquares[j] === (xIsNext ? 'X' : 'O') && adjacentSquares(j).includes(i) && !nextSquares[i]) {
-          nextSquares[j] = null; //empty current square
-          nextSquares[i] = xIsNext ? 'X' : 'O'; //fill adjacent square with player's piece
-          validMove = true; //break from loop and set validMove as true
-          break;
-        }
-      }
-      if (!validMove) return; // Invalid move
-    } else {
-      // if fewer than three moves
-      nextSquares[i] = xIsNext ? 'X' : 'O'; //just set the square with the piece
-    }
-    onPlay(nextSquares);
-  }
-
-  const winner = calculateWinner(squares);
-  let status;
-  if (winner) {
-    status = 'Winner: ' + winner;
-  } else {
-    status = 'Next player: ' + (xIsNext ? 'X' : 'O');
-  }
-
+function Board({ squares, onSquareClick }) {
   return (
-    <>
-      <div className="status">{status}</div>
-      <div className="board-row">
-        <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
-        <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
-        <Square value={squares[2]} onSquareClick={() => handleClick(2)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[3]} onSquareClick={() => handleClick(3)} />
-        <Square value={squares[4]} onSquareClick={() => handleClick(4)} />
-        <Square value={squares[5]} onSquareClick={() => handleClick(5)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[6]} onSquareClick={() => handleClick(6)} />
-        <Square value={squares[7]} onSquareClick={() => handleClick(7)} />
-        <Square value={squares[8]} onSquareClick={() => handleClick(8)} />
-      </div>
-    </>
+    <div>
+      {[0, 1, 2].map(row => ( //loop over each row
+        <div key={row} className="board-row">
+          {[0, 1, 2].map(col => { //loop over each column
+            const index = row * 3 + col; 
+            return (
+              //Render Square component with value from squares 
+              //at the index and onSquareClick event
+              <Square
+                key={index}
+                value={squares[index]}
+                onSquareClick={() => onSquareClick(index)}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
   );
 }
 
 export default function Game() {
-  const [history, setHistory] = useState([Array(9).fill(null)]);
-  const [currentMove, setCurrentMove] = useState(0);
-  const xIsNext = currentMove % 2 === 0;
-  const currentSquares = history[currentMove];
+  //track the number of moves played in the game.
+  const [move, setMove] = useState(0);
+  //remember the index of the last move made
+  const [last, setLast] = useState(null);
+  const [xIsNext, setXIsNext] = useState(true);
+  const [squares, setSquares] = useState(Array(9).fill(null));
+  //track whether a piece was selected to move
+  const [cur, setCur] = useState(false);
+  
 
-  function handlePlay(nextSquares) {
-    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
-    setHistory(nextHistory);
-    setCurrentMove(nextHistory.length - 1);
-  }
-
-  function jumpTo(nextMove) {
-    setCurrentMove(nextMove);
-  }
-
-  const moves = history.map((squares, move) => {
-    let description;
-    if (move > 0) {
-      description = 'Go to move #' + move;
-    } else {
-      description = 'Go to game start';
+  function handleClick(i) {
+    //If there is a winner or the square is already filled 
+    //and move is less than or equal to 5, return early
+    if (calculateWinner(squares) || (squares[i] && move <= 5)) {
+      return;
     }
-    return (
-      <li key={move}>
-        <button onClick={() => jumpTo(move)}>{description}</button>
-      </li>
-    );
-  });
+    const nextSquares = squares.slice(); //Copy squares array to nextSquares
+    if (cur) {
+      let neighbors = getAdjacentSquares(last); 
+      //if the square clicked by the player contains their piece
+      //mark that piece as the currently selected piece 
+      //update the last state to remember which piece was selected
+      if (nextSquares[i] === (xIsNext ? 'X' : 'O')) {
+        setCur(true);
+        setLast(i);
+      }
+      //if a player moves a piece from the center square
+      //the move must result in a win or must vacate the center square
+      if (nextSquares[4] === (xIsNext ? 'X' : 'O')) {
+        const moveWin = findPotentialWinMoves(nextSquares, xIsNext, last);
+        if (moveWin && moveWin.includes(i) && neighbors.includes(i) && nextSquares[i] === null) {
+          nextSquares[i] = (xIsNext ? 'X' : 'O');
+          nextSquares[last] = null;
+          setMove(move + 1);  
+          setXIsNext(!xIsNext);
+          setCur(false);
+        }
+        else if (moveWin === null && last === 4 && nextSquares[i] === null) {
+          nextSquares[i] = (xIsNext ? 'X' : 'O');
+          nextSquares[last] = null;
+          setMove(move + 1);  
+          setXIsNext(!xIsNext);
+          setCur(false);
+        }
+      }
+      else {
+        if (nextSquares[i] === null && neighbors.includes(i)) {
+          nextSquares[i] = (xIsNext ? 'X' : 'O');
+          nextSquares[last] = null;
+          setMove(move + 1);     
+          setXIsNext(!xIsNext);
+          setCur(false);
+        }
+      }
+    }
+    else {
+      if (move <= 5) {
+        if (xIsNext) {
+          nextSquares[i] = 'X';
+        } else {
+          nextSquares[i] = 'O';
+        }
+        setXIsNext(!xIsNext);
+        setMove(move + 1);
+      }
+      else {
+        if (nextSquares[i] === (xIsNext ? 'X' : 'O')) {
+          setCur(true);
+          setLast(i);
+        }
+        else 
+          setCur(false);
+      }
+    }
+    setSquares(nextSquares);
+  }
+
+  const winner = calculateWinner(squares);
+  let status = winner ? 'Winner: ' + winner : 'Next player: ' + (xIsNext ? 'X' : 'O');
 
   return (
     <div className="game">
+      <div className="status">{status}</div>
       <div className="game-board">
-        <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
-      </div>
-      <div className="game-info">
-        <ol>{moves}</ol>
+        <Board squares={squares} onSquareClick={handleClick} />
       </div>
     </div>
   );
 }
 
+function findPotentialWinMoves(boardState, currentPlayer, selectedSquare) {
+  let availableMoves = [];
+  let potentialWinningMoves = []; 
+  let adjacentSquares = getAdjacentSquares(selectedSquare);
+
+  adjacentSquares.forEach((adjSquare) => { //Loop through adjacent squares
+    if (boardState[adjSquare] === null) { //If the square is null
+      availableMoves.push(adjSquare); //add it to availableMoves
+    }
+  });
+
+  availableMoves.forEach((move) => { //Loop through availableMoves
+    //If tempBoard results in a win
+    //add the move to potentialWinningMoves
+    let tempBoard = boardState.slice();
+    tempBoard[selectedSquare] = null; // Remove the piece from its current position
+    tempBoard[move] = currentPlayer === 'X' ? 'X' : 'O'; // Place it in the new position
+    if (calculateWinner(tempBoard)) {
+      potentialWinningMoves.push(move);
+    }
+  });
+
+  return potentialWinningMoves.length > 0 ? potentialWinningMoves : null;
+}
+
+//provides the indices of adjacent squares for a given square 
+function getAdjacentSquares(square) {
+  const adjacentMapping = [
+    [1, 3, 4],     // Adjacent to square 0
+    [0, 2, 3, 4, 5], // Adjacent to square 1
+    [1, 4, 5],     // Adjacent to square 2
+    [0, 1, 4, 6, 7], // Adjacent to square 3
+    [0, 1, 2, 3, 5, 6, 7, 8], // Adjacent to square 4
+    [1, 2, 4, 7, 8], // Adjacent to square 5
+    [3, 4, 7],     // Adjacent to square 6
+    [3, 4, 5, 6, 8], // Adjacent to square 7
+    [4, 5, 7]      // Adjacent to square 8
+  ];
+  return adjacentMapping[square];
+}
+
+//same as before
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2],

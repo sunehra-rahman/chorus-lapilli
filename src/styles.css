@@ -57,18 +57,19 @@ body {
 }
 
 .square {
-  background: #fff;
-  border: 1px solid #999;
+  background: #b6f2e4;
+  border: 7px solid #146ad3;
   float: left;
-  font-size: 24px;
+  font-size: 140px;
   font-weight: bold;
   line-height: 34px;
-  height: 34px;
+  height: 140px;
   margin-right: -1px;
   margin-top: -1px;
   padding: 0;
   text-align: center;
-  width: 34px;
+  width: 140px;
+  color: rgb(101, 91, 131);
 }
 
 .board-row:after {
@@ -83,6 +84,10 @@ body {
 .game {
   display: flex;
   flex-direction: row;
+}
+
+.board-row {
+  display: flex;
 }
 
 .game-info {
